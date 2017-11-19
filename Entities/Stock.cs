@@ -11,6 +11,8 @@ namespace RussellScreener.Entities {
 
         public Stock(string ticker) {
             Ticker = ticker;
+            Company = new StockResultCompany();
+            Stats = new StockResultStats();
         }
 
         [JsonProperty("ticker")]
@@ -27,6 +29,11 @@ namespace RussellScreener.Entities {
 
         [JsonProperty("stats")]
         public StockResultStats Stats {
+            get;
+            set;
+        }
+
+        public string Isin {
             get;
             set;
         }

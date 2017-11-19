@@ -53,6 +53,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BaseJsonObject.cs" />
+    <Compile Include="DataAccess\BaseDataAccessManager.cs" />
+    <Compile Include="DataAccess\IexManager.cs" />
+    <Compile Include="DataAccess\SixSwissManager.cs" />
     <Compile Include="Entities\Stock.cs" />
     <Compile Include="Entities\StockRepository.cs" />
     <Compile Include="ExcelManager.cs" />
@@ -65,6 +68,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Countries\Switzerland\swiss-listings.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Countries\Switzerland\swiss-listings.xlsx" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
