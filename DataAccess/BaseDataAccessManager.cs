@@ -1,3 +1,6 @@
+using System.Threading.Tasks;
+using RussellScreener.Entities;
+
 namespace RussellScreener.DataAccess {
     public abstract class BaseDataAccessManager {
 
@@ -10,5 +13,8 @@ namespace RussellScreener.DataAccess {
         public abstract string GetCacheFileName();
 
         #endregion Methods
+
+        public abstract Task<StockRepository> Process();
+        
     }
 }

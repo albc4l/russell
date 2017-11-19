@@ -15,11 +15,23 @@ namespace RussellScreener.DataAccess {
         #region Methods
 
         /// <summary>
+        /// Return the name of the cache to be used for this manager.
+        /// </summary>
+        /// <returns>Name of the cache to use for this manager</returns>
+        public override string GetCacheFileName() {
+            return "swiss-stocks.json";
+        }
+
+        public override async Task<StockRepository> Process() {
+            return await DownloadSwissStockInfos(@".\countries\switzerland\swiss-listings.csv");
+        }
+
+        /// <summary>
         /// Asynchronously download Swiss stock information by extracting necessary values from HTML pages
         /// retrieved from SIX.
         /// </summary>
         /// <param name="swissListingsCsv">CSV with Swiss tickers. Prepared in advance.</param>
-        public async Task<StockRepository> DownloadSwissStockInfos(string swissListingsCsv) {
+        protected async Task<StockRepository> DownloadSwissStockInfos(string swissListingsCsv) {
             var rawCsvLines = File.ReadAllLines(swissListingsCsv).ToList();
 
             // Forced to use Regex to extract the values from the raw HTML page returned by SIX. 
@@ -55,7 +67,15 @@ namespace RussellScreener.DataAccess {
                     try {
                         Console.WriteLine(name, ticker);
                         // we are forced to do HTML scrapping, no known CSV or free API for Swiss stocks
-                        var stockStatsRawHtml = await wc.DownloadStringTaskAsync(new Uri(string.Format(swissStatsUrl, isin)));
+                        string url = string.Format(swissStatsUrl, isin);
+
+                        var stockStatsRawHtml = await wc.DownloadStringTaskAsync(new Uri(url));
+                        if (stockStatsRawHtml.Contains("No data is available at present")) {
+                            stockStatsRawHtml = await wc.DownloadStringTaskAsync(new Uri(string.Format(swissStatsUrl.Replace("{0}CHF4", "{0}CHF1"), isin)));
+                            if (stockStatsRawHtml.Contains("No data is available at present")) {
+                                Console.WriteLine("This ticker has some issues with data. Manual checking? " + ticker);
+                            }
+                        } 
 
                         // extract dividend yield from the page
                         stock.Stats.DividendYield = ParseSwissRegexResult(divYieldSwissStockRegex, stockStatsRawHtml);
@@ -87,15 +107,6 @@ namespace RussellScreener.DataAccess {
             return value;
         }
 
-        /// <summary>
-        /// Return the name of the cache to be used for this manager.
-        /// </summary>
-        /// <returns>Name of the cache to use for this manager</returns>
-        public override string GetCacheFileName() {
-            return "swiss-stocks.json";
-        }
-
         #endregion Methods
-
     }
 }

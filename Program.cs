@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using RussellScreener.DataAccess;
@@ -18,32 +15,34 @@ namespace RussellScreener {
         /// <param name="args">Command-line arguments. Not used</param>
         /// <returns>Task for async running</returns>
         public static async Task Main(string[] args) {
-            StockRepositoryManager manager = new StockRepositoryManager();
+            Console.WriteLine("1. Russell 1000");
+            Console.WriteLine("2. Swiss Stocks");
+            Console.WriteLine("-- Other keys to Exit --");
+            var choice = Console.ReadKey().Key;
 
-            SixSwissManager swissManager = new SixSwissManager();
-            //  StockRepository stockRepository = await swissManager.DownloadSwissStockInfos(@".\countries\switzerland\swiss-listings.csv");
+            BaseDataAccessManager manager = null;
+            string xlsxFilename = null;
+            if (choice == ConsoleKey.D1) {
+                manager = new IexManager();
+                xlsxFilename = "russell_portfolio.xlsx";
+            } else if (choice == ConsoleKey.D2) {
+                manager = new SixSwissManager();
+                xlsxFilename = "six_swiss_portfolio.xlsx";
+            } else {
+                return;
+            }
 
-            //  manager.WriteStockRepositoryCache(stockRepository, swissManager.GetCacheFileName());
-            var stockRepository = manager.ReadStockRepositoryFromCache(swissManager.GetCacheFileName());
-
-            var screener = new Screener();
-            Console.WriteLine("Analyzing data...");
-            var finalPortfolio = screener.PickStocks(stockRepository);
-            string xlxsFilename = ConfigurationManager.AppSettings["ModelPortfolioExcelFile"];
-
-            ExcelManager excelManager = new ExcelManager();
-            excelManager.WriteExcelFile(xlxsFilename, finalPortfolio, stockRepository.Stocks);
-
-            // await ApplyRussell1000();
+            await Process(manager, xlsxFilename);
         }
 
-        private static async Task ApplyRussell1000() {
-            IexManager iex = new IexManager();
-            var cacheName = iex.GetCacheFileName();
+        private static async Task Process(BaseDataAccessManager dataAccessManager, string outputXlsFilename) {
+            var cacheName = dataAccessManager.GetCacheFileName();
             FileInfo cacheFileInfo = new FileInfo(cacheName);
 
-            // Main workflow
-            // 1. Load data from iShares (the Russell 100 current composition. See DownloadISharesComposition method)
+            Screener screener = new Screener();
+
+            // Main workflow for Russell 1000. Workflows with other data access managers are similar.
+            // 1. Load data from iShares (the Russell 1000 current composition. See DownloadISharesComposition method)
             // 2. Extract tickers
             // 3. Load data from IEX for each ticker (metrics + company info)
             // 4. Store these info into a "StockRepository" which is then saved on disk and used as a cache
@@ -51,8 +50,6 @@ namespace RussellScreener {
             // 5. Read the cache, extract the stocks
             // 6. Apply the strategy rules, get a list of stocks for the portfolio
             // 7. Generate an Excel file with results
-
-            Screener screener = new Screener();
 
             bool refreshCache;
             if (!cacheFileInfo.Exists) {
@@ -65,14 +62,12 @@ namespace RussellScreener {
             }
 
             StockRepositoryManager manager = new StockRepositoryManager();
-
             StockRepository stockRepository;
 
             if (refreshCache) {
                 Console.WriteLine("Refreshing the cache. Download will start now, please wait...");
-                iex.DownloadISharesComposition(ETF_FILENAME);
-                List<string> tickers = iex.ExtractISharesTickers(ETF_FILENAME);
-                stockRepository = await iex.DownloadAllStocksFromIex(tickers);
+
+                stockRepository = await dataAccessManager.Process();
                 manager.WriteStockRepositoryCache(stockRepository, cacheName);
             } else {
                 Console.WriteLine("Reading cache...");
@@ -81,19 +76,18 @@ namespace RussellScreener {
 
             Console.WriteLine("Analyzing data...");
             var finalPortfolio = screener.PickStocks(stockRepository);
-            string xlxsFilename = ConfigurationManager.AppSettings["ModelPortfolioExcelFile"];
 
             ExcelManager excelManager = new ExcelManager();
-            excelManager.WriteExcelFile(xlxsFilename, finalPortfolio, stockRepository.Stocks);
+            excelManager.WriteExcelFile(outputXlsFilename, finalPortfolio, stockRepository.Stocks);
 
-            Console.WriteLine($"An excel file has been generated with your portfolio selection. Name: {xlxsFilename}");
+            Console.WriteLine($"An excel file has been generated with your portfolio selection. Name: {outputXlsFilename}");
             bool showExcel = AskQuestion("Do you want to open this Excel file now?");
             if (showExcel) {
-                Process.Start(xlxsFilename);
+                System.Diagnostics.Process.Start(outputXlsFilename);
             }
 
             Console.WriteLine();
-            Console.WriteLine("Press a key to close this application.");
+            Console.WriteLine("Press Enter to close this application.");
             Console.ReadLine();
         }
 
@@ -109,12 +103,6 @@ namespace RussellScreener {
 
         #endregion Methods
 
-        #region Fields
-
-        const string ETF_FILENAME = "russell.csv";
-
-
-        #endregion Fields
 
     }
 }

@@ -10,6 +10,19 @@ using RussellScreener.Entities;
 namespace RussellScreener.DataAccess {
     public class IexManager : BaseDataAccessManager {
 
+        #region Methods
+
+        public override string GetCacheFileName() {
+            return "russel-iex-stocks.json";
+        }
+
+        public override async Task<StockRepository> Process() {
+            const string etfFilename = "russell.csv";
+            DownloadISharesComposition(etfFilename);
+            List<string> tickers = ExtractISharesTickers(etfFilename);
+            return await DownloadAllStocksFromIex(tickers);
+        }
+
         /// <summary>
         /// Extract all tickers of the holdings within the ETF
         /// It simply goes through the CSV, starting at a given position where data is located (EtfCsvDataLineNumber).
@@ -17,7 +30,7 @@ namespace RussellScreener.DataAccess {
         /// </summary>
         /// <param name="csvFilename">Name of the iShares CSV containing the holdings info</param>
         /// <returns>A list of string of tickers</returns>
-        public List<string> ExtractISharesTickers(string csvFilename) {
+        protected List<string> ExtractISharesTickers(string csvFilename) {
             List<string> tickers = new List<string>();
 
             var rawCsvLines = File.ReadLines(csvFilename).ToList();
@@ -35,7 +48,7 @@ namespace RussellScreener.DataAccess {
         /// Download the holdings as a CSV from iShares page (as of Nov. 2017)
         /// </summary>
         /// <param name="csvFilename">URL of the CSV - Stored in the app.config</param>
-        public void DownloadISharesComposition(string csvFilename) {
+        protected void DownloadISharesComposition(string csvFilename) {
             var etfCompositionUrl = ConfigurationManager.AppSettings["EtfCompositionUrl"];
             using (WebClient wc = new WebClient()) {
                 wc.DownloadFile(etfCompositionUrl, csvFilename);
@@ -47,7 +60,7 @@ namespace RussellScreener.DataAccess {
         /// </summary>
         /// <param name="tickers">List of tickers to download</param>
         /// <returns>A stock repository with all stocks corresponding to the input tickers (except those that failed during fetching)</returns>
-        public async Task<StockRepository> DownloadAllStocksFromIex(List<string> tickers) {
+        protected async Task<StockRepository> DownloadAllStocksFromIex(List<string> tickers) {
             var stockRepository = new StockRepository();
             var iexStockStatsUrl = ConfigurationManager.AppSettings["IexStockStatsUrl"];
             var iexStockCompanyUrl = ConfigurationManager.AppSettings["IexStockCompanyUrl"];
@@ -74,7 +87,7 @@ namespace RussellScreener.DataAccess {
         /// <param name="iexStockCompanyUrl">IEX API URL for the stock company info</param>
         /// <param name="stockRepository">Repository object where the stock will be added</param>
         /// <returns>A task performing the download of the stock info</returns>
-        public async Task DownloadStockAsync(string ticker, string iexStockStatsUrl, string iexStockCompanyUrl, StockRepository stockRepository) {
+        protected async Task DownloadStockAsync(string ticker, string iexStockStatsUrl, string iexStockCompanyUrl, StockRepository stockRepository) {
             using (var wc = new WebClient()) {
                 try {
                     Stock s = new Stock(ticker);
@@ -94,9 +107,6 @@ namespace RussellScreener.DataAccess {
             }
         }
 
-        public override string GetCacheFileName() {
-            return "russel-iex-stocks.json";
-        }
-
+        #endregion Methods
     }
 }
